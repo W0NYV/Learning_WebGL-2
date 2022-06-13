@@ -1,0 +1,224 @@
+<html>
+<head>
+  <title>Real-Time 3D Graphics with WebGL2</title>
+  <link rel="shortcut icon" type="image/png" href="/common/images/favicon.png" />
+
+  <!-- libraries -->
+  <link rel="stylesheet" href="/common/lib/normalize.css">
+
+  <!-- modules -->
+  <script type="text/javascript" src="/common/js/utils.js"></script>
+
+  <!-- vertex Shader -->
+  <script id="vertex-shader" type="x-shader/x-vertex">
+    #version 300 es
+    precision mediump float;
+
+    // Supplied vertex position attribute
+    in vec3 aVertexPosition;
+
+    void main(void) {
+      // Set the position in clipspace coordinates
+      gl_Position = vec4(aVertexPosition, 1.0);
+    }
+  </script>
+
+  <!-- fragment Shader -->
+  <script id="fragment-shader" type="x-shader/x-fragment">
+    #version 300 es
+    precision mediump float;
+
+    // Color that is the result of this shader
+    out vec4 fragColor;
+
+    void main(void) {
+      // Set the result as red
+      fragColor = vec4(1.0, 0.0, 1.0, 1.0);
+    }
+  </script>
+
+  <script type="text/javascript">
+    'use strict';
+
+    //グローバル変数
+    let gl,
+      program,
+      squareVertexBuffer,
+      vertices;
+
+		//DOMからシェーダのソースコード取ってきて、コンパイルして返すよ関数
+    function getShader(id) {
+			
+			//タグのIDから要素を取得する
+      const script = document.getElementById(id);
+
+			//先頭と末尾の空白をすべて取り除く
+      const shaderString = script.text.trim();
+
+      let shader;
+
+			//タイプが頂点なら
+      if (script.type === 'x-shader/x-vertex') {
+				//頂点シェーダの作成
+        shader = gl.createShader(gl.VERTEX_SHADER);
+      
+			//タイプがフラグメントなら
+			} else if (script.type === 'x-shader/x-fragment') {
+        //フラグメントシェーダの作成
+				shader = gl.createShader(gl.FRAGMENT_SHADER);
+      
+			} else {
+        return null;
+      }
+
+			//第二引数をソースコードとして設定
+      gl.shaderSource(shader, shaderString);
+
+			//コンパイル
+      gl.compileShader(shader);
+
+			//コンパイル成功したかな？
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+
+				//失敗!!
+        console.error(gl.getShaderInfoLog(shader));
+        return null;
+      }
+
+			//コンパイルしたシェーダを返すよ
+      return shader;
+    }
+
+		//プログラムオブジェクト周りの設定をごにょごにょする
+    function initProgram() {
+
+			//コンパイルした頂点シェーダを格納するぜ
+      const vertexShader = getShader('vertex-shader');
+
+			//コンパイルしたフラグメントシェーダを格納するぜ
+      const fragmentShader = getShader('fragment-shader');
+
+      //頂点シェーダとフラグメントシェーダのコンビを作成
+      program = gl.createProgram();
+
+      //こいつらでコンビを組むぜ
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+
+			//リンクさせるぜ
+      gl.linkProgram(program);
+
+			//リンクできましたか？
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        //失敗したのら
+				console.error('Could not initialize shaders');
+      }
+
+			//使うぜ！
+      gl.useProgram(program);
+
+			//指定されたシェーダ内の属性の場所を返す
+      program.aVertexPosition = gl.getAttribLocation(program, 'aVertexPosition');
+    }
+
+		//バッファの初期化
+    function initBuffers() {
+      /*
+        V0                    V3
+        (-0.5, 0.5, 0)        (0.5, 0.5, 0)
+        X---------------------X
+        |                     |
+        |                     |
+        |       (0, 0)        |
+        |                     |
+        |                     |
+        X---------------------X
+        V1                    V2
+        (-0.5, -0.5, 0)       (0.5, -0.5, 0)
+      */
+
+			//矩形を表示するための頂点格納してる配列
+			//頂点はクリップ空間座標で表しているもの
+      vertices = [
+        -0.5, 0.5, 0,
+        -0.5, -0.5, 0,
+        0.5, -0.5, 0,
+
+        -0.5, 0.5, 0,
+        0.5, -0.5, 0,
+        0.5, 0.5, 0
+      ];
+
+      //バッファの作成
+      squareVertexBuffer = gl.createBuffer();
+
+			//設定するためにバッファをバインド、頂点データとしてな
+      gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexBuffer);
+
+			//頂点座標を値として設定、値は変わりません
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+
+      //設定終わったから、バインド解除してあげる
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    }
+
+    //フレームバッファに書き込むで
+    function draw() {
+
+			//クリアする
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+			//ビューポートはこっからここまで
+      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+      //バッファをごにょるので、バインドしますね
+      gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexBuffer);
+
+			//シェーダの属性の値に、頂点バッファの値を使うで
+      gl.vertexAttribPointer(program.aVertexPosition, 3, gl.FLOAT, false, 0, 0);
+      
+			//値の設定したし、有効化しようか
+			gl.enableVertexAttribArray(program.aVertexPosition);
+
+      //ドローコール！！！！
+      //gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, vertices.length);
+
+      //描画関数実行終わったし、バインド解除しちゃる
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    }
+
+    // Entry point to our application
+    function init() {
+      // Retrieve the canvas
+      const canvas = utils.getCanvas('webgl-canvas');
+
+      // Set the canvas to the size of the screen
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      // Retrieve a WebGL context
+      gl = utils.getGLContext(canvas);
+      // Set the clear color to be black
+      gl.clearColor(0, 0, 0, 1);
+
+      // Call the functions in an appropriate order
+      initProgram();
+      initBuffers();
+      draw();
+    }
+
+    // Call init once the webpage has loaded
+    window.onload = init;
+  </script>
+</head>
+
+<body>
+
+  <canvas id="webgl-canvas">
+    Your browser does not support the HTML5 canvas element.
+  </canvas>
+
+</body>
+</html>
