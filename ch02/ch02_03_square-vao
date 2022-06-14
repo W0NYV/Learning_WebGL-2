@@ -43,7 +43,7 @@
     //グローバル変数
     let gl,
       program,
-      squareVertexBuffer,
+      squareVAO,
       squareIndexBuffer,
       indices;
 
@@ -149,16 +149,26 @@
 
 	    //頂点をどう結んで三角形を作るか示した配列
       indices = [0, 1, 2, 
-				 0, 2, 3];
+			           0, 2, 3];
+
+      //VAOインスタンスの作成
+      squareVAO = gl.createVertexArray();
+
+      //バインドしてその上で処理
+      gl.bindVertexArray(squareVAO);
 
       //バッファの作成
-      squareVertexBuffer = gl.createBuffer();
+      const squareVertexBuffer = gl.createBuffer();
 
 	    //設定するためにバッファをバインド、頂点データとしてな
       gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexBuffer);
 
 	    //頂点座標を値として設定、値は変わりません
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+      //draw()内で後ほどデータを使用するためにVAOの命令を実行
+      gl.enableVertexAttribArray(program.aVertexPosition);
+      gl.vertexAttribPointer(program.aVertexPosition, 3, gl.FLOAT, false, 0, 0);
 
       //バッファ作るで
       squareIndexBuffer = gl.createBuffer();
@@ -170,37 +180,30 @@
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
 
       //設定終わったから、バインド解除してあげる
+      gl.bindVertexArray(null);
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
     }
 
     //フレームバッファに書き込むで
+    
+    //Q Drawの直前でIBOすらバインドしてないけどいいのか？
     function draw() {
 
-	  //クリアする
+	    //クリアする
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-	  //ビューポートはこっからここまで
+	    //ビューポートはこっからここまで
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-      //バッファをごにょるので、バインドしますね
-      gl.bindBuffer(gl.ARRAY_BUFFER, squareVertexBuffer);
-
-	    //シェーダの属性の値に、頂点バッファの値を使うで
-      gl.vertexAttribPointer(program.aVertexPosition, 3, gl.FLOAT, false, 0, 0);
-      
-	    //値の設定したし、有効化しようか
-	    gl.enableVertexAttribArray(program.aVertexPosition);
-
-      //描画関数を実行するために、インデックスバッファをバインドするで
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, squareIndexBuffer);
+      //VAOをバインド
+      gl.bindVertexArray(squareVAO);
 
       //ドローコール！！！！
       gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
 
       //描画関数実行終わったし、バインド解除しちゃる
-      gl.bindBuffer(gl.ARRAY_BUFFER, null);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+      gl.bindVertexArray(null);
     }
 
     // Entry point to our application
